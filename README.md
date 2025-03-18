@@ -110,3 +110,118 @@ bumblebee_project/
 ### 📄 라이선스
 
 이 프로젝트는 MIT 라이선스에 따라 배포됩니다. 자세한 내용은 `LICENSE` 파일을 참조하세요.
+# 🤖 JetBot + Gemma + Ollama + FastAPI + WebSocket 제어 프로젝트
+
+이 프로젝트는 NVIDIA JetBot을 웹 인터페이스를 통해 제어하고, Google의 Gemma 모델(Ollama를 통해)을 사용하여 이미지 인식 및 자연어 명령 처리를 수행하는 시스템입니다.
+
+**주요 기능:**
+
+*   **실시간 웹캠 스트리밍:** JetBot의 카메라 영상을 PC의 웹 브라우저에서 실시간으로 확인합니다.
+*   **이미지 기반 제어:** 웹캠 이미지를 캡처하여 Gemma 모델에 전송하고, 이미지 분석 결과에 따라 JetBot을 제어합니다. (예: 장애물 회피)
+*   **텍스트 명령 제어:** 웹 인터페이스에서 텍스트 명령(예: "turn left", "go forward")을 입력하여 JetBot을 제어합니다.
+*   **자연어 처리 (부분적):** Gemma 모델을 사용하여 간단한 자연어 명령을 이해하고 처리합니다. (향후 확장 가능)
+*   **음성 응답 (TTS):** Gemma 모델의 응답을 Text-to-Speech (TTS)를 사용하여 PC에서 음성으로 출력합니다.
+*   **웹소켓 통신:** PC와 JetBot 간의 실시간 양방향 통신을 위해 웹소켓을 사용합니다.
+*   **FastAPI 백엔드:** PC에서 실행되는 FastAPI 서버는 Ollama API 호출, JetBot 명령 생성, TTS 처리, 정적 파일(HTML, CSS, JavaScript) 제공을 담당합니다.
+
+**프로젝트 구조:**
+
+*   **`main.py` (PC):**
+    *   FastAPI 서버를 실행합니다.
+    *   Ollama API를 호출하여 Gemma 모델과 통신합니다.
+    *   Gemma 모델의 응답을 기반으로 JetBot에게 보낼 명령(JSON 형식)을 결정합니다.
+    *   웹소켓을 통해 JetBot에 명령을 전송합니다.
+    *   edge-tts를 사용하여 Gemma 모델의 응답을 음성으로 출력합니다 (PC에서).
+    *   정적 파일 (`static/index.html`)을 제공합니다.
+*   **`jetbot_control.py` (JetBot):**
+    *   웹소켓 서버를 실행합니다.
+    *   PC (`main.py`)로부터 명령을 받아 `jetbot` 라이브러리를 사용하여 JetBot을 제어합니다.
+    *   JetBot의 카메라 이미지를 캡처하여 Base64로 인코딩하고, 웹소켓을 통해 PC로 주기적으로 전송합니다.
+*   **`static/index.html` (PC):**
+    *   웹 브라우저에서 실행되는 사용자 인터페이스를 제공합니다.
+    *   JetBot으로부터 웹소켓을 통해 실시간으로 카메라 이미지를 받아 표시합니다.
+    *   버튼 클릭 또는 텍스트 명령 입력을 통해 사용자 입력을 받습니다.
+    *   `fetch` API를 사용하여 PC의 `main.py` (FastAPI 서버)에 이미지/명령 데이터를 전송합니다.
+
+**사전 요구 사항:**
+
+*   **PC:**
+    *   Python 3.7 이상
+    *   Ollama 설치 및 실행 (Gemma 또는 Llava 모델 사용 가능해야 함)
+    *   필수 Python 패키지:
+        ```bash
+        pip install fastapi uvicorn httpx websockets pydantic python-multipart edge-tts
+        ```
+*   **JetBot:**
+    *   JetBot 이미지 설치 (JetPack, jetbot 패키지 등)
+    *   Python 3.6 (또는 호환되는 환경)
+    *   필수 Python 패키지:
+        ```bash
+        pip install websockets  # aiohttp, aiohttp-cors는 제거
+        ```
+    *   `mjpg-streamer`는 사용하지 않습니다.
+
+**설치 방법:**
+
+1.  **Ollama 설치 및 실행 (PC):**
+    *   Ollama 공식 웹사이트의 지침에 따라 Ollama를 설치하고 실행합니다.
+    *   사용할 Gemma 모델(예: `llava`)을 다운로드합니다.  `ollama pull llava`
+
+2.  **`main.py` 및 `static` 폴더 생성 (PC):**
+    *   PC에 적절한 위치에 `main.py` 파일을 생성하고, 제공된 코드를 붙여넣습니다.
+    *   `main.py` 파일과 *같은 디렉토리에* `static` 폴더를 생성합니다.
+    *   `static` 폴더 안에 `index.html` 파일을 생성하고, 제공된 코드를 붙여넣습니다.
+
+3.  **`jetbot_control.py` 파일 생성 (JetBot):**
+    *   JetBot의 Jupyter Notebook 환경에서 새 Python 파일을 생성하고 (`jetbot_control.py`), 제공된 코드를 붙여넣습니다.
+
+4. **의존성 설치 (PC):**
+
+    * PC의 터미널에서 `main.py`가 있는 디렉토리로 이동한 후 다음 명령 실행:
+
+     ```bash
+     pip install fastapi uvicorn httpx websockets pydantic python-multipart edge-tts
+     ```
+     또는 Jupyter Notebook을 사용한다면:
+      ```python
+      import sys
+      !{sys.executable} -m pip install fastapi uvicorn httpx websockets pydantic python-multipart edge-tts
+      ```
+5. **의존성 설치 (Jetbot)**
+    * Jetbot의 터미널에서 다음 명령 실행:
+     ```bash
+      pip install websockets
+     ```
+     또는 Jupyter Notebook을 사용한다면:
+      ```python
+      import sys
+      !{sys.executable} -m pip install websockets
+      ```
+
+**실행 방법:**
+
+1.  **Ollama 서버 실행 (PC):** PC에서 Ollama 서버가 `llava` 모델과 함께 실행 중인지 확인합니다.
+
+2.  **`main.py` 실행 (PC):** PC의 터미널에서 다음 명령을 실행합니다.
+    ```bash
+    uvicorn main:app --reload --host 0.0.0.0 --port 8000
+    ```
+
+3.  **`jetbot_control.py` 실행 (JetBot):** JetBot의 Jupyter Notebook에서 `jetbot_control.py` 코드를 실행합니다. (새로운 셀에서 실행)
+
+4.  **웹 브라우저 접속 (PC):** PC의 웹 브라우저에서 `http://localhost:8000`에 접속합니다. JetBot의 카메라 이미지가 실시간으로 표시되고, 버튼이나 텍스트 명령을 사용하여 JetBot을 제어할 수 있습니다.
+
+**참고:**
+
+*   JetBot의 IP 주소는 `192.168.137.233`으로 가정합니다.  실제 JetBot의 IP 주소에 맞게 `main.py`와 `index.html`의 코드를 수정해야 합니다.
+*   웹소켓 포트(8765)와 aiohttp 포트(8000)가 다른 프로그램과 충돌하지 않는지 확인하세요. 충돌하는 경우, `jetbot_control.py`와 `main.py`에서 포트 번호를 변경하고, `index.html`에서도 변경된 포트를 반영해야 합니다.
+*   `mjpg-streamer`는 사용하지 않습니다. JetBot 카메라 이미지는 웹소켓을 통해 실시간으로 전송됩니다.
+
+**개선 및 확장 가능성:**
+
+*   **자연어 처리 강화:** 더 복잡한 자연어 명령을 이해하고 처리할 수 있도록 Gemma 모델의 활용 방안을 개선할 수 있습니다.
+*   **JetBot 상태 정보 표시:** JetBot의 현재 상태(배터리 잔량, 속도, 방향 등)를 웹 인터페이스에 표시할 수 있습니다.
+*   **센서 데이터 활용:** JetBot의 센서 데이터(거리 센서, IMU 등)를 활용하여 더 지능적인 동작을 구현할 수 있습니다. (예: 자동 장애물 회피, 경로 계획)
+*   **UI/UX 개선:** 웹 인터페이스 디자인과 사용자 경험을 개선할 수 있습니다.
+*   **보안 강화:** 웹소켓 연결 및 API 엔드포인트에 대한 인증/인가를 추가하여 보안을 강화할 수 있습니다.
+*   **오디오 스트리밍:** TTS 음성을 한 번에 전송하는 대신, 실시간으로 스트리밍하여 지연 시간을 줄일 수 있습니다.
